@@ -23,6 +23,12 @@ body {
   position: relative;
 }
 
+body.blown-state {
+  justify-content: flex-start;
+  padding-top: 50px;
+  overflow: hidden;
+}
+
 
 
 /* 视频蛋糕容器 */
@@ -37,80 +43,35 @@ body {
 
 /* 视频样式 */
 .cake-video {
-  width: 350px;
-  height: 620px;
-  object-fit: cover;
+  width: 320px;
+  height: auto;
   display: block;
   transition: opacity 0.5s ease;
 }
 
 .cake-video.hidden {
-  opacity: 0;
-  pointer-events: none;
-}
-
-/* 熄灭后的静态蛋糕 */
-.cake-blown {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 350px;
-  height: 350px;
   display: none;
-  align-items: center;
-  justify-content: center;
 }
 
-.cake-blown.show {
-  display: flex;
-}
-
-.cake-blown-inner {
-  position: relative;
-  transform-style: preserve-3d;
-}
-
-/* 简化的熄灭蛋糕 */
-.blown-cake-img {
-  font-size: 150px;
-  filter: drop-shadow(0 10px 30px rgba(0,0,0,0.3));
-}
-
-/* 烟雾效果 */
-.smoke-container {
-  position: absolute;
-  top: 30px;
-  left: 50%;
-  transform: translateX(-50%);
-  display: flex;
-  gap: 15px;
-}
-
-.smoke {
-  width: 10px;
-  height: 10px;
-  background: rgba(200, 200, 200, 0.7);
-  border-radius: 50%;
-  opacity: 0;
-}
-
-.smoke.active {
-  animation: smokeRise 2s ease-out forwards;
-}
-
-@keyframes smokeRise {
-  0% { opacity: 0.8; transform: translateY(0) scale(1); }
-  100% { opacity: 0; transform: translateY(-100px) scale(4); }
+/* 熄灭后的蛋糕视频 */
+.cake-blown-video {
+  width: 320px;
+  height: auto;
+  display: none;
 }
 
 /* 提示文字 */
 .hint {
   position: fixed;
-  bottom: 30px;
+  bottom: 50px;
   left: 50%;
   transform: translateX(-50%);
   text-align: center;
   z-index: 10;
+}
+
+body.blown-state .hint {
+  display: none;
 }
 
 .hint p {
@@ -224,6 +185,10 @@ body {
   content: '🎤 ';
 }
 
+body.blown-state .mic-status {
+  display: none;
+}
+
 /* 重新点燃按钮 */
 .relight-btn {
   position: fixed;
@@ -242,6 +207,12 @@ body {
   transition: all 0.3s;
 }
 
+body.blown-state .relight-btn {
+  position: static;
+  transform: none;
+  margin-top: 0;
+}
+
 .relight-btn:hover {
   background: rgba(255, 152, 0, 1);
 }
@@ -255,11 +226,9 @@ body {
 /* 吹灭后的小猫咪唱歌视频 */
 .cat-singing-container {
   display: none;
-  position: fixed;
-  bottom: 100px;
-  left: 50%;
-  transform: translateX(-50%);
+  margin-top: 20px;
   z-index: 50;
+  text-align: center;
 }
 
 .cat-singing-container.show {
@@ -267,8 +236,8 @@ body {
 }
 
 .cat-singing-video {
-  width: 250px;
-  height: 300px;
+  width: 200px;
+  height: 240px;
   object-fit: cover;
   border-radius: 10px;
 }
@@ -327,24 +296,14 @@ body {
       </video>
 
 
-      <!-- 吹灭后的蛋糕 -->
-      <div class="cake-blown" id="cake-blown">
-        <div class="cake-blown-inner">
-          <div class="smoke-container">
-            <div class="smoke" id="smoke-1"></div>
-            <div class="smoke" id="smoke-2"></div>
-            <div class="smoke" id="smoke-3"></div>
-          </div>
-          <div class="blown-cake-img">🎂</div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <div class="hint">
-    <div class="blow-hint" id="blow-btn">
-      <span class="blow-icon">💨</span>
-      <span>点击或对着麦克风吹气熄灭蜡烛</span>
+      <!-- 吹灭后的蛋糕视频 -->
+      <video
+        class="cake-blown-video"
+        id="cake-blown"
+        playsinline
+      >
+        <source src="cake-blown.mp4" type="video/mp4">
+      </video>
     </div>
   </div>
 
@@ -353,6 +312,13 @@ body {
     <video class="cat-singing-video" id="cat-singing-video" playsinline>
       <source src="cat-singing.mp4" type="video/mp4">
     </video>
+  </div>
+
+  <div class="hint">
+    <div class="blow-hint" id="blow-btn">
+      <span class="blow-icon">💨</span>
+      <span>点击或对着麦克风吹气熄灭蜡烛</span>
+    </div>
   </div>
 
   <button class="relight-btn" id="relight-btn">🔥 重新点燃蜡烛</button>
@@ -374,36 +340,36 @@ const relightBtn = document.getElementById('relight-btn');
 const wishText = document.getElementById('wish-text');
 const micStatus = document.getElementById('mic-status');
 
-// 蜡烛状态
-let candlesLit = true;
+// 背景音乐控制
+const bgMusic = document.getElementById('bg-music');
+const musicBtn = document.getElementById('music-btn');
 
 // 小猫咪唱歌视频
 const catSingingContainer = document.getElementById('cat-singing-container');
 const catSingingVideo = document.getElementById('cat-singing-video');
+
+// 蜡烛状态
+let candlesLit = true;
 
 // 吹灭蜡烛
 function blowOutCandles() {
   if (!candlesLit) return;
   candlesLit = false;
 
-  // 隐藏视频，显示熄灭蛋糕
+  // 切换到吹灭后的布局
+  document.body.classList.add('blown-state');
+
+  // 隐藏视频，显示熄灭蛋糕视频
   cakeVideo.pause();
   cakeVideo.classList.add('hidden');
-  cakeBlown.classList.add('show');
+  cakeBlown.style.display = 'block';
+  cakeBlown.currentTime = 0;
+  cakeBlown.play();
 
   // 停止背景音乐
   bgMusic.pause();
   musicBtn.textContent = '🎵';
   musicBtn.classList.remove('playing');
-
-  // 烟雾效果
-  for (let i = 1; i <= 3; i++) {
-    const smoke = document.getElementById(`smoke-${i}`);
-    setTimeout(() => {
-      smoke.classList.add('active');
-      setTimeout(() => smoke.classList.remove('active'), 2000);
-    }, i * 200);
-  }
 
   // 禁用吹气按钮
   blowBtn.classList.add('disabled');
@@ -414,11 +380,12 @@ function blowOutCandles() {
     createConfetti();
   }, 500);
 
-  // 显示小猫咪唱歌视频并播放
+
+  // 显示小猫咪唱歌视频
   setTimeout(() => {
     catSingingContainer.classList.add('show');
     catSingingVideo.play();
-  }, 1000);
+  }, 500);
 
   // 显示重新点燃按钮
   setTimeout(() => {
@@ -432,11 +399,20 @@ blowBtn.addEventListener('click', blowOutCandles);
 // 重新点燃
 relightBtn.addEventListener('click', () => {
   candlesLit = true;
+
+  // 恢复居中布局
+  document.body.classList.remove('blown-state');
+
   cakeVideo.classList.remove('hidden');
   cakeVideo.currentTime = 0;
   cakeVideo.muted = true;
   cakeVideo.play();
-  cakeBlown.classList.remove('show');
+
+  // 隐藏熄灭蛋糕视频
+  cakeBlown.style.display = 'none';
+  cakeBlown.pause();
+  cakeBlown.currentTime = 0;
+
   blowBtn.classList.remove('disabled');
   wishText.classList.remove('show');
   relightBtn.classList.remove('show');
@@ -528,10 +504,6 @@ function createConfetti() {
     setTimeout(() => piece.remove(), 4000);
   }
 }
-
-// 背景音乐控制
-const bgMusic = document.getElementById('bg-music');
-const musicBtn = document.getElementById('music-btn');
 
 // 尝试自动播放音乐
 bgMusic.play().then(() => {
